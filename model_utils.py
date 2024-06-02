@@ -5,19 +5,27 @@ from torch import nn, optim
 from torchvision import models
 
 def load_model(arch='vgg13', hidden_units=512):
-    # Load pretrained model based on the architecture specified
     if arch == 'vgg13':
         model = models.vgg13(pretrained=True)
     elif arch == 'vgg16':
         model = models.vgg16(pretrained=True)
+    elif arch == 'resnet50':
+        model = models.resnet50(pretrained=True)
+        in_features = model.fc.in_features
+        model.fc = nn.Sequential(
+            nn.Linear(in_features, hidden_units),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_units, 102),
+            nn.LogSoftmax(dim=1)
+        )
+        return model
     else:
         raise ValueError(f"Unsupported architecture {arch}")
-    
-    # Freeze parameters to avoid backpropagation through them
+
     for param in model.parameters():
         param.requires_grad = False
     
-    # Define a new fully connected classifier
     classifier = nn.Sequential(
         nn.Linear(model.classifier[0].in_features, hidden_units),
         nn.ReLU(),
@@ -29,6 +37,7 @@ def load_model(arch='vgg13', hidden_units=512):
     model.classifier = classifier
     
     return model
+
 
 def train_model(model, trainloader, validloader, epochs, learning_rate, gpu):
     # Define the loss criterion and optimizer
@@ -79,8 +88,6 @@ def validate_model(model, validloader, criterion, device):
     return valid_loss, accuracy
 
 def save_checkpoint(model, save_dir, arch, hidden_units, learning_rate, epochs):
-    # Save the trained model checkpoint
-    model.class_to_idx = train_data.class_to_idx
     checkpoint = {
         'arch': arch,
         'hidden_units': hidden_units,
@@ -91,11 +98,11 @@ def save_checkpoint(model, save_dir, arch, hidden_units, learning_rate, epochs):
         'classifier': model.classifier
     }
     
-    torch.save(checkpoint, f"{save_dir}/checkpoint.pth")
+    torch.save(checkpoint, f"{save_dir}/checkpoint_resnet50.pth")
 
-def load_checkpoint(filepath):
-    # Load a model checkpoint
-    checkpoint = torch.load(filepath)
+
+def load_checkpoint(filepath, device='cpu'):
+    checkpoint = torch.load(filepath, map_location=device)
     model = load_model(checkpoint['arch'], checkpoint['hidden_units'])
     model.classifier = checkpoint['classifier']
     model.load_state_dict(checkpoint['state_dict'])
@@ -103,17 +110,14 @@ def load_checkpoint(filepath):
     
     return model
 
-def predict(image_path, model, topk=5, gpu=False):
-    # Predict the class (or classes) of an image using a trained deep learning model
+
+def predict(image, model, topk=5, device='cpu'):
     model.eval()
-    device = torch.device("cuda" if gpu and torch.cuda.is_available() else "cpu")
     model.to(device)
-    
-    img = image_utils.process_image(image_path)
-    img = img.unsqueeze(0).to(device)
+    image = image.to(device)
     
     with torch.no_grad():
-        logps = model(img)
+        logps = model(image)
         ps = torch.exp(logps)
         top_p, top_class = ps.topk(topk, dim=1)
     

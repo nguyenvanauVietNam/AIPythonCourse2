@@ -23,10 +23,16 @@ https://stackoverflow.com/questions/tagged/image-classification
 https://github.com/FirebaseExtended/mlkit-custom-image-classifier/issues/6
 
 
+If you do not find the flowers/ dataset in the current directory, /workspace/home/aipnd-project/, you can download it using the following commands.
+
+!wget 'https://s3.amazonaws.com/content.udacity-data.com/nd089/flower_data.tar.gz'
+!unlink flowers
+!mkdir flowers && tar -xzf flower_data.tar.gz -C flowers
+
 
 Running the scripts
 To train
-python train.py path/to/data --save_dir S --arch vgg13 --learning_rate 0.01 --hidden_units 512 --epochs 20 --gpu
+python train.py path/to/data --save_dir "/data_dir" --arch vgg13 --learning_rate 0.01 --hidden_units 512 --epochs 20 --gpu
 
 To predict using a trained model
-python predict.py path/to/image checkpoint_resnet50.pth --top_k 3 --category_names cat_to_name.json --gpu
+python predict.py path/to/image "/data_dir/checkpoint_resnet50.pth --top_k 3 --category_names cat_to_name.json --gpu
